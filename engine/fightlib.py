@@ -219,6 +219,7 @@ def _post(img, env, t, grade=None):
     a = a * (1 - G["vig"] * np.clip(r - 0.55, 0, 1) ** 1.5)[..., None]
     return Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8), "RGB").convert("RGBA")
 
+CAM_LOCK = os.environ.get("CAM_LOCK", "1") == "1"   # 1 = fixed camera (default), 0 = moving camera with shake/zoom
 BLEND = float(os.environ.get("BLEND", "1.0"))   # 0 = off, 1 = normal, up to ~1.6 = strong
 def _blend_fighter(L, bg):
     """make a fighter sit IN the scene: take on the scene's ambient colour, soften the cut-out edge,
@@ -549,6 +550,7 @@ class Choreo:
         s._tr = True
 
     def camv(s, t):
+        if CAM_LOCK: return 1.0, 540.0, 880.0   # v19.2: locked wide shot - the background never moves or changes
         # v19.1 calm camera: low-pass the keyed camera (triangle window +-1.2 s) and halve how far it swings
         # from the shot's centre, so the background no longer slides left/right every time a fighter steps
         if not hasattr(s, "_ck"):
@@ -789,8 +791,8 @@ class Choreo:
         img = s.grade(img, env, rt)
         if any(0 <= rt - e[0] < 0.05 for e in s.bl): img.alpha_composite(Image.new("RGBA", img.size, (255, 250, 240, 70)))   # impact flash frame
         t = rt
-        z, zx, zy = s.camv(t); sh = s.shake(t)
-        z *= 1 + sum(0.055 * math.exp(-(t - e[0]) / 0.12) for e in s.bl if 0 <= t - e[0] < 0.6)   # zoom punch
+        z, zx, zy = s.camv(t); sh = 0 if CAM_LOCK else s.shake(t)
+        if not CAM_LOCK: z *= 1 + sum(0.055 * math.exp(-(t - e[0]) / 0.12) for e in s.bl if 0 <= t - e[0] < 0.6)   # zoom punch
         if sh: z = max(z, 1.06)
         if s.land:
             z = max(0.86, z * 0.88)   # a little wider in 16:9 so both fighters and the scene fit
