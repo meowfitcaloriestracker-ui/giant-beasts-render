@@ -1,0 +1,1 @@
+{"name": "GiantBeastsVS_EP4_Mammoth_vs_SaberTooth_EN", "fight": "fight.py", "sfx": "sfx.py", "sfx_gain": 1.0, "voice": "voice_cold.wav", "voice_gain": 1.3, "music": null, "env": {"FIGHT_A": "mammoth", "FIGHT_B": "smilodon", "LANG_EP": "EN", "BLOOD": "1", "EP_NAME": "GiantBeastsVS_EP4_Mammoth_vs_SaberTooth"}}
