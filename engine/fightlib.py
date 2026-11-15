@@ -549,7 +549,21 @@ class Choreo:
         s._tr = True
 
     def camv(s, t):
-        z, x, y = tuple(F.track([(k, v[i]) for k, v in s.CAMk], t) for i in range(3))
+        # v19.1 calm camera: low-pass the keyed camera (triangle window +-1.2 s) and halve how far it swings
+        # from the shot's centre, so the background no longer slides left/right every time a fighter steps
+        if not hasattr(s, "_ck"):
+            s._ck = [[(k, v[i]) for k, v in s.CAMk] for i in range(3)]
+            xs = [v for _, v in s._ck[1]]; s._cx0 = sum(xs) / len(xs)
+        CALM = float(os.environ.get("CAM_CALM", "1"))
+        if CALM > 0:
+            acc = [0.0, 0.0, 0.0]; wsum = 0.0
+            for j in range(-4, 5):
+                w = 5 - abs(j); u = t + j * 0.3 * CALM; wsum += w
+                for i in range(3): acc[i] += w * F.track(s._ck[i], u)
+            z, x, y = (v / wsum for v in acc)
+            x = s._cx0 + (x - s._cx0) * (1 - 0.5 * min(1, CALM)); z = 1 + (z - 1) * 0.8
+        else:
+            z, x, y = tuple(F.track(s._ck[i], t) for i in range(3))
         if BEAUTY:   # slow handheld-style drift so the shot never feels frozen
             z *= 1 + 0.018 * math.sin(t * 0.19); x += 16 * math.sin(t * 0.23); y += 9 * math.sin(t * 0.31 + 1)
         return z, x, y
@@ -786,11 +800,12 @@ class Choreo:
             ow, oh = W, H; cw, ch = W / z, H / z; cx_, cy_ = zx, zy; cmw, cmh = W, H
         x0 = min(max(cx_ - cw / 2 + sh * (0.6 * math.sin(t * 53) + 0.4 * math.sin(t * 31)) / z, 0), cmw - cw)
         y0 = min(max(cy_ - ch / 2 + sh * (0.6 * math.cos(t * 47) + 0.4 * math.sin(t * 29)) / z, 0), cmh - ch)
-        if s.land or z > 1.001 or sh: img = img.crop((int(x0), int(y0), int(x0 + cw), int(y0 + ch))).resize((ow, oh), Image.BICUBIC)
+        if s.land or z > 1.001 or sh:   # v19.1: sub-pixel camera (integer crop made the background stutter while the camera moved)
+            img = img.transform((ow, oh), Image.AFFINE, (cw / ow, 0, x0, 0, ch / oh, y0), resample=Image.BICUBIC)
         if BEAUTY:
             under_ = env in SC.UNDER
             _motes(img, t, under_, env)
-            fg = _foreground(env, ow, oh, under_); dx_ = int(14 * math.sin(t * 0.23))
+            fg = _foreground(env, ow, oh, under_); dx_ = 0   # v19.1: foreground silhouettes no longer drift in 1-px steps
             img.alpha_composite(fg, (dx_, 0)) if dx_ >= 0 else img.alpha_composite(fg.crop((-dx_, 0, ow, oh)), (0, 0))
             img = _post(img, env, t, getattr(s, 'look', None))
         for l0, l1, txt in s.labels:
