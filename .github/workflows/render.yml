@@ -2,7 +2,7 @@ name: render
 # Push a jobs/<id>/job.json (or run manually with a job id) -> 16 runners render slices in parallel -> merged clip in a Release
 on:
   push:
-    paths: ['jobs/*/job.json']
+    paths: ['jobs/**']
   workflow_dispatch:
     inputs:
       job:
@@ -25,7 +25,7 @@ jobs:
       - id: pick
         run: |
           if [ -n "${{ github.event.inputs.job }}" ]; then J="${{ github.event.inputs.job }}"; else
-            J=$(git show --name-only --format= HEAD | grep -E '^jobs/[^/]+/job.json$' | head -1 | cut -d/ -f2); fi
+            J=$(git show --name-only --format= HEAD | grep -E '^jobs/[^/]+/' | cut -d/ -f2 | sort -u | head -1); fi
           echo "job=$J" >> "$GITHUB_OUTPUT"; echo "JOB=$J"
       - uses: ./.github/actions/setup
       - run: python engine/gha.py prep "${{ steps.pick.outputs.job }}"
