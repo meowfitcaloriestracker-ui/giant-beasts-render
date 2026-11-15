@@ -219,7 +219,7 @@ def _post(img, env, t, grade=None):
     a = a * (1 - G["vig"] * np.clip(r - 0.55, 0, 1) ** 1.5)[..., None]
     return Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8), "RGB").convert("RGBA")
 
-CAM_LOCK = os.environ.get("CAM_LOCK", "1") == "1"   # 1 = fixed camera (default), 0 = moving camera with shake/zoom
+CAM_LOCK = os.environ.get("CAM_LOCK", "0") == "1"   # 1 = fixed camera, 0 = calm moving camera with shake/zoom (default)
 BLEND = float(os.environ.get("BLEND", "1.0"))   # 0 = off, 1 = normal, up to ~1.6 = strong
 def _blend_fighter(L, bg):
     """make a fighter sit IN the scene: take on the scene's ambient colour, soften the cut-out edge,

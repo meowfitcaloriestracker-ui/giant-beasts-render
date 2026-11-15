@@ -51,20 +51,56 @@ def srt(lines, starts, vo, path, lines_en=None):
     for n, ln in enumerate(lines):
         ph = [p.strip() for p in ln.split("|")]; ref = [max(4, len(p.strip())) for p in (lines_en[n] if lines_en else ln).split("|")]
         if len(ref) != len(ph): ref = [max(4, len(p)) for p in ph]
-        tot = sum(ref); acc = 0
-        for p, r in zip(ph, ref):
+        tot = sum(ref); acc = 0; pm = PHM[n] if PHM and len(PHM[n]) == len(ph) else None
+        for j, (p, r) in enumerate(zip(ph, ref)):
             a = starts[n] + vo[n] * acc / tot; acc += r; b = starts[n] + vo[n] * acc / tot
+            if pm: a = starts[n] + pm[j]; b = starts[n] + (pm[j + 1] if j + 1 < len(pm) else vo[n])   # follow the real voice
             out.append(f"{k}\n{ts(a)} --> {ts(b)}\n{p}\n"); k += 1
     open(path, "w", encoding="utf-8").write("\n".join(out))
 
 if LANG == "EN": build_en()
 TLJ = json.load(open(os.path.join(HERE, "timeline_en.json" if LANG == "EN" else "timeline.json")))
 ST_, DU_, VO_ = TLJ["starts"], TLJ["durs"], TLJ["voice"]; TOTAL = TLJ["total"]
+def _phrase_marks():
+    """template v3: where each '|' phrase really starts, found from the pauses in the recorded voice
+    (falls back to text-length proportions when a pause can't be found)"""
+    cache = os.path.join(HERE, f"_phr_{LANG}.json")
+    if os.path.exists(cache): return json.load(open(cache))
+    src = os.path.join(HERE, "voice_en.wav" if LANG == "EN" else os.environ.get("VOICE_SRC", "voice_th.wav"))
+    if not os.path.exists(src): return None
+    import numpy as np
+    raw = subprocess.run([os.environ.get("FFMPEG", "ffmpeg"), "-v", "error", "-i", src, "-ac", "1", "-ar", "8000", "-f", "f32le", "-"], capture_output=True).stdout
+    y = np.frombuffer(raw, np.float32); FR = 160; marks = []
+    for n, ln in enumerate(LINES):
+        ph = [max(4, len(p.strip())) for p in ln.split("|")]; v = VO_[n]
+        est = [v * sum(ph[:j]) / sum(ph) for j in range(1, len(ph))]
+        seg = y[int(ST_[n] * 8000): int((ST_[n] + v) * 8000)]
+        if len(ph) == 1 or len(seg) < FR * 10: marks.append([0.0] + est); continue
+        rms = np.sqrt(np.convolve(seg ** 2, np.ones(FR) / FR, "same"))[::FR]; thr = max(0.006, 0.12 * np.percentile(rms, 95))
+        quiet = rms < thr; gaps = []; i = 0
+        while i < len(quiet):
+            if quiet[i]:
+                j = i
+                while j < len(quiet) and quiet[j]: j += 1
+                if i > 3 and j < len(quiet) - 3 and j - i >= 5: gaps.append(j * FR / 8000 - 0.04)   # speech resumes here
+                i = j
+            else: i += 1
+        out, last = [0.0], 0.0
+        for e in est:
+            c = [g for g in gaps if g > last + 0.3]
+            g = min(c, key=lambda g: abs(g - e)) if c else None
+            out.append(g if g is not None and abs(g - e) < 0.3 * v + 0.4 else max(e, last + 0.3)); last = out[-1]
+        marks.append(out)
+    try: json.dump(marks, open(cache, "w"))
+    except OSError: pass
+    return marks
 LINES = json.load(open(os.path.join(HERE, "lines_en.json" if LANG == "EN" else "lines.json"), encoding="utf-8"))
+PHM = _phrase_marks()
 def S(n): return ST_[n - 1]
 def PS(n, k):
-    """start time of phrase k (0-based) of line n, proportional to text length"""
+    """start time of phrase k (0-based) of line n: from the voice pauses when known, else proportional to text length"""
     ph = [max(4, len(p.strip())) for p in LINES[n - 1].split("|")]; k = min(k, len(ph) - 1)
+    if PHM and len(PHM[n - 1]) == len(ph): return S(n) + PHM[n - 1][k]
     return S(n) + VO_[n - 1] * sum(ph[:k]) / sum(ph)
 def E(n): return ST_[n - 1] + DU_[n - 1]
 # ------------------------------------------------------------------ named beats (template v2: edit here, not in the code below)
@@ -91,6 +127,7 @@ T = {
             real="นักล่าลูกแมมมอธตัวจริง", g1="โฮโมเธอเรียม (แมวเขี้ยวดาบอีกชนิด)", g2="ถ้ำฟรีเซนฮาน รัฐเท็กซัส", g3="กระดูกลูกแมมมอธวัย ~2 ขวบ จำนวนมาก!",
             cold="ใครจะรอด?", cold2="แมมมอธ VS เสือเขี้ยวดาบ", count="ฉากต่อสู้เริ่มใน",
             ch=["เปิดเรื่อง", "ข้อมูลแมมมอธ", "ข้อมูลเสือเขี้ยวดาบ", "สรุปสถิติ + เทียบขนาด", "การต่อสู้", "ทำไมถึงชนะ", "ความจริงจากฟอสซิล", "ตอนต่อไป"],
+            emph={"แมมมอธ": (130, 205, 255), "เสือเขี้ยวดาบ": (255, 140, 120), "สมิโลดอน": (255, 140, 120), "โฮโมเธอเรียม": (255, 140, 120), "ลาเบรีย": YEL, "เท็กซัส": YEL, "หกตัน": YEL, "สี่ถึงหกตัน": YEL, "เกือบสามสิบเซนติเมตร": YEL, "ยี่สิบแปดเซนติเมตร": YEL, "สี่เมตร": YEL, "สามเมตร": YEL, "สองถึงสามร้อยกิโลกรัม": YEL, "ยี่สิบเท่า": YEL, "เกือบเท่าตัว": YEL, "อ่อนกว่าสิงโต": YEL, "เฉือนคอ": YEL, "หลายพันตัว": YEL, "สองขวบ": YEL, "ยุคน้ำแข็ง": YEL, "ขนหนาสองชั้น": YEL, "ผู้ชนะ": YEL, "ซี่โครงร้าว": YEL, "ช้างเอเชีย": YEL},
             who="คุณคิดว่าใครชนะ? คอมเมนต์เลย!", next="ตอนหน้า: จิกาโนโตซอรัส VS ทีเร็กซ์", like="กดถูกใจ", share="แชร์", sub="ติดตาม"),
  "EN": dict(series="GIANT BEASTS VS · WHO WINS?", ep="EP.4", title_a="MAMMOTH", title_b="SABER-TOOTH", vs="VS",
             sim="FIGHT SIMULATION", dawn="Ice Age North America", winner="WINNER: MAMMOTH!",
@@ -107,6 +144,7 @@ T = {
             real="THE REAL CALF HUNTER", g1="Homotherium (another sabertooth cat)", g2="Friesenhahn Cave, Texas", g3="Many bones of ~2-year-old mammoth calves!",
             cold="WHO SURVIVES?", cold2="MAMMOTH VS SABER-TOOTH", count="FIGHT STARTS IN",
             ch=["Intro", "Mammoth profile", "Saber-tooth profile", "Stats + size check", "The fight", "Why it won", "What the fossils say", "Next episode"],
+            emph={"mammoth": (130, 205, 255), "Mammoth": (130, 205, 255), "saber-tooth": (255, 140, 120), "Saber-tooth": (255, 140, 120), "Smilodon": (255, 140, 120), "Homotherium": (255, 140, 120), "La Brea": YEL, "Texas": YEL, "winner": YEL}, emph_re=r"\d[\d,.]*(?:\s?(?:-|to)\s?\d[\d,.]*)?(?:\s?(?:m|cm|kg|tonnes|meters|centimeters|kilograms|times))?",
             who="Who wins? Tell us in the comments!", next="Next: Giganotosaurus VS T. rex", like="LIKE", share="SHARE", sub="SUBSCRIBE"),
 }[LANG]
 _FC = {}
@@ -139,14 +177,30 @@ def caption(img, t):
     for n in range(1, len(LINES) + 1):
         if S(n) - 0.1 <= t < S(n) + VO_[n - 1] + 0.25: break
     else: return
-    ph = [p.strip() for p in LINES[n - 1].split("|")]; L_ = [max(4, len(p)) for p in ph]; tot = sum(L_); u = (t - S(n)) / max(0.1, VO_[n - 1])
-    acc = 0; k = 0
-    for i, l in enumerate(L_):
-        if u >= acc / tot: k = i
-        acc += l
+    ph = [p.strip() for p in LINES[n - 1].split("|")]
+    k = max([i for i in range(len(ph)) if t >= PS(n, i) - 0.05] or [0])
     s = ph[k]; sz = fit(s, 56, 1640); w = font(sz).getlength(s)
     layer(img, lambda d: d.rounded_rectangle((960 - w / 2 - 34, 978 - sz * 0.85, 960 + w / 2 + 34, 978 + sz * 0.85), 24, fill=(0, 0, 0, 150)))
-    text(img, (960, 978), s, sz, sw=max(3, sz // 12))
+    rich(img, 960, 978, s, sz)
+
+def rich(img, cx, cy, s, sz):
+    """caption text with key words coloured (T["emph"]: word -> colour), drawn left to right"""
+    import re
+    keys = sorted(T.get("emph", {}), key=len, reverse=True)
+    parts = re.split("(" + "|".join(map(re.escape, keys)) + ")", s) if keys else [s]
+    if T.get("emph_re"):
+        out = []
+        for p in parts:
+            out += [p] if p in T.get("emph", {}) else re.split("(" + T["emph_re"] + ")", p)
+        parts = out
+    f = font(sz); x = cx - f.getlength(s) / 2; sw = max(3, sz // 12)
+    def draw(d):
+        nonlocal x
+        for p in parts:
+            if not p: continue
+            col = T.get("emph", {}).get(p) or (YEL if T.get("emph_re") and re.fullmatch(T["emph_re"], p) else WHT)
+            d.text((x, cy), p, font=f, fill=col, anchor="lm", stroke_width=sw, stroke_fill=DK); x += f.getlength(p)
+    layer(img, draw)
 
 def fact_card(img, x0, name, col, facts, t):
     shown = [(k, v, PB(*at)) for k, v, at in facts if t >= PB(*at) - 0.05]
@@ -219,18 +273,16 @@ def closeup(C, t, x=560, y=780, z=1.42, hold=0.9):
 
 def sec_intro():
     t0, t1 = 0.0, SB("a1"); C = FL.Choreo(A_, B_, SCENE_, land=True)
-    C.stare(0.5); C.roar("a", PB("hook", 0) + 0.6, big=True); C.roar("b", PB("hook", 1) + 0.6, big=True); C.stare(SB("coexist") + 0.2)
+    C.stare(0.5, max(2.0, SB("a1") - 1.0))   # calm before the fight: no roaring
     return t0, t1, C
 def sec_a():
     t0, t1 = SB("a1"), SB("b1"); C = FL.Choreo(A_, B_, SCENE_, land=True); hide(C, "b")
     C.k("a", 0, x=FL.AH - 500); C.g("a", 0, "walk"); C.k("a", 1.8, x=FL.AH); C.g("a", 1.8, "pose")
-    C.roar("a", SB("a2") - t0 + 0.4, big=True); C.roar("a", SB("a3") - t0 + 0.6)
     for k in ("a1", "a2", "a3"): hide(C, "b", SB(k) - t0)
     return t0, t1, C
 def sec_b():
     t0, t1 = SB("b1"), SB("stats"); C = FL.Choreo(A_, B_, SCENE_, land=True); hide(C, "a")
     C.k("b", 0, x=FL.BH + 500); C.g("b", 0, "walk"); C.k("b", 1.8, x=FL.BH); C.g("b", 1.8, "pose")
-    C.roar("b", SB("b2") - t0 + 0.4, big=True); C.roar("b", SB("b3") - t0 + 0.6)
     for k in ("b1", "b2", "b3"): hide(C, "a", SB(k) - t0)
     return t0, t1, C
 def sec_stats():
@@ -252,16 +304,13 @@ def sec_fight():
     C.limp("b", r("limp") + 0.2, d=min(3.6, DB("limp") + 0.2))
     C.victory("a", r("win") + 0.2)
     tt = r("why") + 0.3
-    while tt < t1 - t0 - 1.0: tt = C.roar("a", tt, d=2.4) + 2.2
+    while tt < t1 - t0 - 1.0: tt = C.stare(tt, 2.6)   # calm after the fight
     tt = r("limp") + 0.2 + min(3.6, DB("limp") + 0.2)
     while tt < t1 - t0 + 0.5: hide(C, "b", tt); tt += 0.25
     return t0, t1, C
 def sec_outro():
     t0, t1 = SB("truth1"), TOTAL; C = FL.Choreo(A_, B_, SCENE_, land=True); r = lambda k: SB(k) - t0
     tt = 0.3
-    while tt < r("who"): tt = C.stare(tt, 2.6)
-    C.roar("a", r("who") + 0.6); C.roar("b", r("who") + 3.2)
-    tt = r("outro")
     while tt < t1 - t0: tt = C.stare(tt, 2.6)
     return t0, t1, C
 

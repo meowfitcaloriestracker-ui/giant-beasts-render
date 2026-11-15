@@ -37,6 +37,14 @@ def render(job, s, n):
         print([p for p in ex.map(one, range(sub)) if p])
 
 
+def lufs(path):
+    """integrated loudness of an audio file (ffmpeg ebur128)"""
+    r = subprocess.run(["ffmpeg", "-nostats", "-i", path, "-af", "ebur128", "-f", "null", "-"], capture_output=True, text=True).stderr
+    import re
+    m = re.findall(r"I:\s+(-?[\d.]+) LUFS", r)
+    return float(m[-1]) if m else -23.0
+
+
 def merge(job):
     jd, cfg, env = setup(job); info = json.load(open(os.path.join(jd, "_info.json"))); TL = info["TL"]
     parts = sorted(glob.glob(os.path.join(PARTS, "part*.mp4"))); os.makedirs(OUT, exist_ok=True)
@@ -49,9 +57,11 @@ def merge(job):
     if cfg.get("sfx"):
         sfx = os.path.join(PARTS, "sfx.wav")
         subprocess.run([PY, cfg["sfx"]], cwd=jd, env=dict(env, SFX_OUT=sfx), check=True)
-        cmd += ["-i", sfx]; fl.append(f"[{n}:a]volume={cfg.get('sfx_gain', 1.0)}[s]"); mix.append("[s]"); n += 1
+        g = 10 ** ((float(os.environ.get("SFX_LUFS", -26)) - lufs(sfx)) / 20)   # effects sit well under the voice
+        cmd += ["-i", sfx]; fl.append(f"[{n}:a]volume={g:.4f}[s]"); mix.append("[s]"); n += 1
     if cfg.get("voice"):
-        cmd += ["-i", os.path.join(jd, cfg["voice"])]; fl.append(f"[{n}:a]volume={cfg.get('voice_gain', 1.5)}[vo]"); mix.append("[vo]"); n += 1
+        vp = os.path.join(jd, cfg["voice"]); g = 10 ** ((float(os.environ.get("VOICE_LUFS", -15)) - lufs(vp)) / 20)   # loud, clear narration
+        cmd += ["-i", vp]; fl.append(f"[{n}:a]volume={g:.4f}[vo]"); mix.append("[vo]"); n += 1
     out = os.path.join(OUT, cfg.get("name", job) + ".mp4")
     if mix:
         fl.append("".join(mix) + f"amix=inputs={len(mix)}:normalize=0:duration=longest,alimiter=limit=0.95[a]")
