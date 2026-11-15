@@ -211,33 +211,34 @@ def stats_table(img, t):
 # ------------------------------------------------------------------ sections
 def hide(C, who, t=0.0): C.k(who, t, x=(FL.AH - 2600) if who == "a" else (FL.BH + 2600))
 A_, B_ = "mammoth", "smilodon"
+SCENE_ = os.environ.get("SCENE", "tundra")   # one scene for the whole episode (switching scenes between sections looked jumpy)
 FL.DN.SP["mammoth"]["L"] = int(os.environ.get("LA", 1050)); FL.DN.SP["smilodon"]["L"] = int(os.environ.get("LB", 760))
 def closeup(C, t, x=560, y=780, z=1.42, hold=0.9):
     """template v2: hard push-in on a big hit, then ease back out"""
     C.cam(t + 0.02, z, x, y); C.cam(t + hold, z - 0.12, x, y + 20); C.cam(t + hold + 0.6, 1.0, 540, 880)
 
 def sec_intro():
-    t0, t1 = 0.0, SB("a1"); C = FL.Choreo(A_, B_, "tundra", land=True)
+    t0, t1 = 0.0, SB("a1"); C = FL.Choreo(A_, B_, SCENE_, land=True)
     C.stare(0.5); C.roar("a", PB("hook", 0) + 0.6, big=True); C.roar("b", PB("hook", 1) + 0.6, big=True); C.stare(SB("coexist") + 0.2)
     return t0, t1, C
 def sec_a():
-    t0, t1 = SB("a1"), SB("b1"); C = FL.Choreo(A_, B_, "snowforest", land=True); hide(C, "b")
+    t0, t1 = SB("a1"), SB("b1"); C = FL.Choreo(A_, B_, SCENE_, land=True); hide(C, "b")
     C.k("a", 0, x=FL.AH - 500); C.g("a", 0, "walk"); C.k("a", 1.8, x=FL.AH); C.g("a", 1.8, "pose")
     C.roar("a", SB("a2") - t0 + 0.4, big=True); C.roar("a", SB("a3") - t0 + 0.6)
     for k in ("a1", "a2", "a3"): hide(C, "b", SB(k) - t0)
     return t0, t1, C
 def sec_b():
-    t0, t1 = SB("b1"), SB("stats"); C = FL.Choreo(A_, B_, "snowforest", land=True); hide(C, "a")
+    t0, t1 = SB("b1"), SB("stats"); C = FL.Choreo(A_, B_, SCENE_, land=True); hide(C, "a")
     C.k("b", 0, x=FL.BH + 500); C.g("b", 0, "walk"); C.k("b", 1.8, x=FL.BH); C.g("b", 1.8, "pose")
     C.roar("b", SB("b2") - t0 + 0.4, big=True); C.roar("b", SB("b3") - t0 + 0.6)
     for k in ("b1", "b2", "b3"): hide(C, "a", SB(k) - t0)
     return t0, t1, C
 def sec_stats():
-    t0, t1 = SB("stats"), SB("sim"); C = FL.Choreo(A_, B_, "tundra", land=True); tt = 0.3
+    t0, t1 = SB("stats"), SB("sim"); C = FL.Choreo(A_, B_, SCENE_, land=True); tt = 0.3
     while tt < t1 - t0: tt = C.stare(tt, 2.4)
     return t0, t1, C
 def sec_fight():
-    t0, t1 = SB("sim"), SB("truth1"); C = FL.Choreo(A_, B_, "tundra", land=True); r = lambda k: SB(k) - t0
+    t0, t1 = SB("sim"), SB("truth1"); C = FL.Choreo(A_, B_, SCENE_, land=True); r = lambda k: SB(k) - t0
     hide(C, "b"); C.stare(0.4, 2.0)
     b_in = PB("dawn", 2) - t0; C.k("b", b_in, x=FL.BH + 700); C.g("b", b_in, "walk"); C.k("b", b_in + 2.4, x=FL.BH); C.g("b", b_in + 2.4, "pose")
     C.stalk("b", r("stalk") + 0.2, d=min(3.2, DB("stalk") - 0.4))
@@ -256,7 +257,7 @@ def sec_fight():
     while tt < t1 - t0 + 0.5: hide(C, "b", tt); tt += 0.25
     return t0, t1, C
 def sec_outro():
-    t0, t1 = SB("truth1"), TOTAL; C = FL.Choreo(A_, B_, "snowforest", land=True); r = lambda k: SB(k) - t0
+    t0, t1 = SB("truth1"), TOTAL; C = FL.Choreo(A_, B_, SCENE_, land=True); r = lambda k: SB(k) - t0
     tt = 0.3
     while tt < r("who"): tt = C.stare(tt, 2.6)
     C.roar("a", r("who") + 0.6); C.roar("b", r("who") + 3.2)
