@@ -1,0 +1,1 @@
+{"name": "สัตว์ยักษ์VS_EP4_แมมมอธVSเสือเขี้ยวดาบ_แนวนอน_TH", "fight": "fight.py", "sfx": "sfx.py", "sfx_gain": 1.0, "voice": "voice_cold.wav", "voice_gain": 1.3, "music": null, "env": {"FIGHT_A": "mammoth", "FIGHT_B": "smilodon", "LANG_EP": "TH", "BLOOD": "1", "EP_NAME": "สัตว์ยักษ์VS_EP4_แมมมอธVSเสือเขี้ยวดาบ", "VOICE_SRC": "voice_th.m4a"}}

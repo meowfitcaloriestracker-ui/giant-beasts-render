@@ -1,0 +1,6 @@
+pillow
+numpy
+scipy
+soundfile
+opencv-python-headless
+edge-tts

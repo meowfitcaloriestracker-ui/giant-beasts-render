@@ -1,0 +1,12 @@
+name: setup
+description: python + ffmpeg + Thai text shaping + render libraries
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with: { python-version: '3.12', cache: pip, cache-dependency-path: engine/requirements.txt }
+    - shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg libfribidi0 libraqm0 >/dev/null
+        pip install -q -r engine/requirements.txt

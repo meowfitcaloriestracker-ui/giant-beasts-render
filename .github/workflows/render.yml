@@ -1,0 +1,79 @@
+name: render
+# Push a jobs/<id>/job.json (or run manually with a job id) -> 16 runners render slices in parallel -> merged clip in a Release
+on:
+  push:
+    paths: ['jobs/*/job.json']
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'job folder name under jobs/'
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  NSLICES: 16
+
+jobs:
+  prep:
+    runs-on: ubuntu-latest
+    outputs:
+      job: ${{ steps.pick.outputs.job }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - id: pick
+        run: |
+          if [ -n "${{ github.event.inputs.job }}" ]; then J="${{ github.event.inputs.job }}"; else
+            J=$(git diff --name-only HEAD~1 HEAD | grep -E '^jobs/[^/]+/job.json$' | head -1 | cut -d/ -f2); fi
+          echo "job=$J" >> "$GITHUB_OUTPUT"; echo "JOB=$J"
+      - uses: ./.github/actions/setup
+      - run: python engine/gha.py prep "${{ steps.pick.outputs.job }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prep
+          path: |
+            jobs/${{ steps.pick.outputs.job }}
+            out
+          include-hidden-files: true
+          retention-days: 2
+
+  render:
+    needs: prep
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        slice: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with: { name: prep, path: . }
+      - run: python engine/gha.py render "${{ needs.prep.outputs.job }}" ${{ matrix.slice }} $NSLICES
+      - uses: actions/upload-artifact@v4
+        with:
+          name: part-${{ matrix.slice }}
+          path: parts/*.mp4
+          retention-days: 2
+
+  merge:
+    needs: [prep, render]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with: { name: prep, path: . }
+      - uses: actions/download-artifact@v4
+        with: { pattern: 'part-*', path: parts, merge-multiple: true }
+      - run: python engine/gha.py merge "${{ needs.prep.outputs.job }}"
+      - run: python engine/gha.py assets "${{ needs.prep.outputs.job }}" release
+      - uses: actions/upload-artifact@v4
+        with: { name: result, path: release, retention-days: 7 }
+      - name: release
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          TAG="${{ needs.prep.outputs.job }}-${{ github.run_number }}"
+          gh release create "$TAG" release/* --title "$TAG" --notes "Rendered by GitHub Actions run ${{ github.run_id }}"
