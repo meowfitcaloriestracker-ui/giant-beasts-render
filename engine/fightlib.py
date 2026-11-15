@@ -4,7 +4,7 @@
     t = C.roar("a", 0.0); t = C.clash(t); t = C.gore("b", t); ...
     C.frame(t) -> PIL image ; C.sfx(path) -> effects track
 A = ตัวซ้าย (หน้า ใหญ่กว่า), B = ตัวขวา (หลัง, หันซ้าย)"""
-import os, sys, math, random, glob
+import os, sys, math, random, glob, zlib
 _HERE0 = os.path.dirname(os.path.abspath(__file__))   # v19: may run from a job folder copy -> sounds/modules still come from the engine
 HERE = _HERE0 if os.path.isdir(os.path.join(_HERE0, "sounds")) else (os.environ.get("ENGINE") or os.path.join(_HERE0, "..", "..", "engine")); sys.path.insert(0, HERE)
 os.environ.setdefault("FIGHT_A", "trex"); os.environ.setdefault("FIGHT_B", "spino")
@@ -142,7 +142,7 @@ def _foreground(env, w, h, under):
     """blurred dark silhouettes in the screen corners (ferns, grass, rocks / kelp, reef rocks) for depth"""
     key = (env, w, h)
     if key in _FG: return _FG[key]
-    rnd = random.Random(hash(env) & 0xffff)
+    rnd = random.Random(zlib.crc32(env.encode()) & 0xffff)   # stable across processes (hash() is randomised per process)
     L = Image.new("RGBA", (w, h), (0, 0, 0, 0)); d = ImageDraw.Draw(L)
     col = (8, 34, 40, 235) if under else ((24, 30, 14, 240) if env not in ("tundra", "snowforest") else (40, 48, 58, 230))
     for side in (0, 1):

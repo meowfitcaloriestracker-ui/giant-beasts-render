@@ -5,7 +5,7 @@ fighters stand at y=1330. Layers: sky gradient + soft clouds -> far ranges in ha
 mid ranges -> tree / rock silhouettes -> textured ground -> foreground tufts.
 Backgrounds have no black outlines, so the outlined characters stay readable on top.
 """
-import math, random
+import math, random, zlib
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -183,7 +183,7 @@ def vignette(img, a=90):
 
 # ------------------------------------------------------------------ scenes
 def build(name, w, h):
-    rnd = random.Random(hash(name) % 1000)
+    rnd = random.Random(zlib.crc32(name.encode()) % 1000)   # stable across processes (hash() is randomised per process)
     if name == "jungle":
         img = vgrad(w, h, [(0, (150, 196, 200)), (0.45, (206, 224, 200)), (HZ / h, (170, 196, 150)), (1, (60, 70, 40))])
         for k, (base, col, bl) in enumerate(((HZ - 120, (120, 156, 128), 6), (HZ - 60, (88, 124, 92), 3), (HZ, (60, 92, 62), 0))):
