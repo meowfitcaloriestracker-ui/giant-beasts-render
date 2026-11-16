@@ -137,7 +137,7 @@ NAME = {"trex": "ทีเร็กซ์", "spino": "สไปโนซอร�
 HIP = {k: (DN.W0 * 0.5 - 0.05 * DN.SP[k]["L"], DN.GROUND - DN.SP[k]["hip_h"] * DN.SP[k]["L"]) for k in set((KA, KB))}
 def dino(img, kind, gait, t, q, scale, ground, flip, fl=0.0):
     P = dict(pitch=q["pitch"], neck=q["neck"], head=q["head"], tailup=q["tailup"], crouch=q["crouch"], arm=q["arm"], feet={"near": (q["nd"], q["nl"]), "far": (q["fd"], q["fl"])})
-    s = DN.beast(kind, t, gait, max(0.0, min(1.0, q["m"])), P=P); hx, hy = HIP[kind]
+    s = DN.beast(kind, t, gait, max(0.0, min(1.0, q["m"])), P=P, walkd=(-q["x"] if flip else q["x"]) / scale); hx, hy = HIP[kind]
     if abs(q["r"]) > 0.05: s = s.rotate(-q["r"], resample=Image.BICUBIC, center=(hx, hy))
     s = s.resize((int(1600 * scale), int(1000 * scale)), Image.BICUBIC)
     if flip: s = s.transpose(Image.FLIP_LEFT_RIGHT); hx = 1600 - hx

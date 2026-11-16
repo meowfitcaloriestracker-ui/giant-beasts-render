@@ -338,7 +338,7 @@ def head_shape(kind, gape):
         jaw = [(0.58, -0.02), (1.0, 0.04), (0.6, 0.12)]
         return skull, jaw, (0.58, 0.0), (0.38, -0.15), ("comb", 0, 0)
 
-def beast(kind, t, gait="walk", mouth=0.0, freq=None, look=0.0, P=None):
+def beast(kind, t, gait="walk", mouth=0.0, freq=None, look=0.0, P=None, walkd=None):
     """P (optional pose, all additive): pitch, neck, head, tailup, tailbend, crouch, arm, feet={"near":(dx,lift),"far":(dx,lift)} (gait "pose" = feet planted from P)"""
     P = P or {}
     if SP[kind].get("swim"):
@@ -348,8 +348,14 @@ def beast(kind, t, gait="walk", mouth=0.0, freq=None, look=0.0, P=None):
     G = lambda k, d=0.0: P.get(k, d) * (0.25 if _low and k in ("pitch", "crouch") else 0.45 if _mam and k == "pitch" else 0.35 if _mam and k == "crouch" else 0.6 if _mam and k == "neck" and P.get(k, 0) < 0 else 1.0) + (0.6 * P.get("pitch", 0) if _low and k == "head" else 0)
     sp = SP[kind]; L = sp["L"]; cv = Canvas(); col = sp["col"]
     fr = freq or {"walk": 0.8, "run": 1.5, "idle": 0.4, "graze": 0.4, "roar": 0.5, "pose": 0.4}[gait]
-    moving = gait in ("walk", "run"); p = 2 * math.pi * fr * t * (-1 if moving else 1)   # planted foot travels backward = walking forward
+    moving = gait in ("walk", "run")
     stride = (0.16 if gait == "walk" else 0.26 if gait == "run" else 0.0) * L; lift = (0.05 if gait == "walk" else 0.09) * L
+    duty = 0.62 if gait == "walk" else 0.42   # share of the cycle a foot is planted
+    # v20 planted feet (gait solver idea from line-art-animation): when the caller passes the distance walked (walkd,
+    # in this canvas' units, + = forward) the step cycle is driven by distance, so a planted foot moves back exactly
+    # as fast as the body moves forward - no sliding. Without walkd the cycle runs on time as before.
+    if moving and walkd is not None: p = 2 * math.pi * walkd / (stride / duty)
+    else: p = 2 * math.pi * fr * t
     hipx = W0 * 0.5 - 0.05 * L
     bob = (0.012 * L * math.cos(2 * p)) if moving else 0.006 * L * math.sin(p)
     hip = (hipx, GROUND - sp["hip_h"] * L + bob + G("crouch") * L)
@@ -432,15 +438,21 @@ def beast(kind, t, gait="walk", mouth=0.0, freq=None, look=0.0, P=None):
         else: l1, l2, l3, l4, r1, r2, r3 = dims
         l1, l2, l3, l4 = l1 * L, l2 * L, l3 * L, l4 * L
         ph = p + phase
+        sw = 0.0   # 0 planted .. 1 mid-swing
         if moving:
-            fx = base[0] + 0.06 * L + stride * 0.5 * math.cos(ph); fy = GROUND - lift * max(0.0, math.sin(ph))
+            u = (ph / (2 * math.pi)) % 1.0
+            if u < duty: rx = stride * 0.5 - stride * u / duty; fy = GROUND   # planted: slides back at body speed
+            else:
+                q_ = (u - duty) / (1 - duty); mj = q_ ** 3 * (10 - 15 * q_ + 6 * q_ * q_)   # minimum-jerk swing
+                sw = math.sin(math.pi * q_); rx = -stride * 0.5 + stride * mj; fy = GROUND - lift * sw ** 1.2
+            fx = base[0] + 0.06 * L + rx
         elif gait == "pose":
             fdx, flift = P.get("feet", {}).get("far" if far else "near", (0.0, 0.0))
             fx, fy = base[0] + (0.05 + fdx) * L + (0.03 * L if far else 0), GROUND - flift * L
         else: fx, fy = base[0] + (0.05 if not front else 0.02) * L + (0.03 * L if far else 0), GROUND
         toe = (fx + (0.05 * L if not front else 0.02 * L), fy)
-        ma = -2.0 + (0.5 * max(0, math.sin(ph)) if moving else 0)   # metatarsus angle from toe back up to ankle
-        if sp.get("pillar"): ma = -1.62 + (0.3 * max(0, math.sin(ph)) if moving else 0); toe = (fx + 0.035 * L, fy)
+        ma = -2.0 + 0.5 * sw   # metatarsus angle from toe back up to ankle (lifts while the foot swings)
+        if sp.get("pillar"): ma = -1.62 + 0.3 * sw; toe = (fx + 0.035 * L, fy)
         ankle = (toe[0] + l3 * math.cos(ma) - 0.02 * L, toe[1] + l3 * math.sin(ma))
         knee = ik(base, ankle, l1, l2, bend=-1 if front else 1)
         polys = [taper(base, knee, r1 * L, r2 * L * 0.8), taper(knee, ankle, r2 * L * 0.8, r3 * L * 0.7), taper(ankle, (toe[0] - 0.01 * L, toe[1] - 0.012 * L), r3 * L * 0.7, r3 * L * 0.55)]
