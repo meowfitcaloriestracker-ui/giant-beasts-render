@@ -78,7 +78,7 @@ SP = {
                 torso=[(0.085, 0.1, 0.105), (0.08, 0.1, 0.11), (0.05, 0.085, 0.09)], torso_ang=-0.28,
                 neck=[(0.035, 0.068, 0.068), (0.03, 0.064, 0.064)], neck_ang=-0.45,
                 tail=[(0.05, 0.085, 0.08)] + [(0.054, 0.062 * (1 - k / 9) ** 1.8 + 0.005, 0.055 * (1 - k / 9) ** 1.8 + 0.005) for k in range(9)], tail_ang=-0.16,
-                leg=(0.125, 0.125, 0.065, 0.05, 0.085, 0.042, 0.03), arm=(0.042, 0.042, 0.018, 0.015), head="trex", hs=0.2),
+                leg=(0.125, 0.125, 0.065, 0.05, 0.085, 0.042, 0.03), arm=(0.042, 0.042, 0.018, 0.015), head="trex", hs=0.2, hdeco=["boss", "jawmuscle", "angry"]),
  "edmonto":dict(L=1250, biped=False, col=(132, 128, 92), belly=(206, 196, 160), stripe=(98, 94, 66), spot=(160, 140, 96), hip_h=0.29, tail_bend=0.02,
                 torso=[(0.09, 0.12, 0.13), (0.09, 0.11, 0.12), (0.07, 0.08, 0.085)], torso_ang=0.10,
                 neck=[(0.05, 0.07, 0.07), (0.05, 0.06, 0.06), (0.045, 0.055, 0.055)], neck_ang=-0.25,
@@ -102,10 +102,10 @@ SP = {
 }
 _TH = lambda n, a, p=1.8: [(0.05, a, a * 0.9)] + [(0.054, a * 0.75 * (1 - k / n) ** p + 0.005, a * 0.68 * (1 - k / n) ** p + 0.005) for k in range(n)]
 SP.update({
- "giga":   dict(L=1320, biped=True, col=(118, 112, 94), belly=(204, 196, 170), stripe=(80, 78, 66), spot=(146, 124, 98), hip_h=0.25, tail_bend=0.03,
+ "giga":   dict(L=1320, biped=True, col=(104, 110, 116), belly=(214, 210, 198), stripe=(64, 68, 76), spot=(146, 124, 98), hip_h=0.25, tail_bend=0.03,
                 torso=[(0.085, 0.095, 0.1), (0.08, 0.095, 0.105), (0.05, 0.08, 0.085)], torso_ang=-0.24,
                 neck=[(0.04, 0.064, 0.064), (0.035, 0.06, 0.06)], neck_ang=-0.4, tail=_TH(10, 0.085), tail_ang=-0.14,
-                leg=(0.12, 0.12, 0.062, 0.048, 0.08, 0.04, 0.03), arm=(0.05, 0.05, 0.024, 0.016), head="giga", hs=0.21, hdeco=["ridge", "angry"]),
+                leg=(0.12, 0.12, 0.062, 0.048, 0.08, 0.04, 0.03), arm=(0.05, 0.05, 0.024, 0.016), head="giga", hs=0.21, hdeco=["ridge", "angry", "jawmuscle"]),
  "carno":  dict(L=1050, biped=True, col=(156, 100, 74), belly=(218, 190, 150), stripe=(112, 70, 52), spot=(98, 62, 46), hip_h=0.28, tail_bend=0.03,
                 torso=[(0.085, 0.1, 0.1), (0.08, 0.1, 0.105), (0.05, 0.085, 0.085)], torso_ang=-0.24,
                 neck=[(0.04, 0.07, 0.07), (0.035, 0.066, 0.066)], neck_ang=-0.42, tail=_TH(9, 0.085), tail_ang=-0.12,
@@ -238,7 +238,7 @@ def chain(start, ang0, segs, bends, dyn):
 def head_shape(kind, gape):
     """local coords: x forward from neck joint (units of head scale), y down. returns (skull, jaw, hinge, eye, extras)"""
     if kind == "trex":
-        skull = [(-0.24, -0.26), (-0.06, -0.44), (0.3, -0.47), (0.44, -0.5), (0.56, -0.44), (0.9, -0.38), (1.02, -0.34), (1.05, -0.16), (1.04, 0.02), (1.0, 0.04), (0.9, 0.045), (0.6, 0.05), (0.2, 0.06), (0.05, 0.08), (-0.2, 0.2)]
+        skull = [(-0.26, -0.28), (-0.08, -0.5), (0.26, -0.55), (0.44, -0.58), (0.58, -0.5), (0.86, -0.44), (1.0, -0.38), (1.06, -0.24), (1.06, -0.06), (1.03, 0.03), (0.9, 0.045), (0.6, 0.05), (0.2, 0.06), (0.05, 0.08), (-0.22, 0.22)]   # v20: deep, broad, rounded snout
         jaw = [(0.12, 0.03), (0.98, 0.03), (0.96, 0.15), (0.6, 0.2), (0.3, 0.27), (0.0, 0.25)]
         return skull, jaw, (0.06, 0.05), (0.42, -0.3), ("teeth", 0.25, 0.95)
     if kind == "spino":   # long, low crocodile-like snout with a notch and a rosette tip
@@ -254,9 +254,9 @@ def head_shape(kind, gape):
         jaw = [(0.28, 0.1), (0.9, 0.08), (1.02, 0.12), (0.9, 0.21), (0.45, 0.25), (0.3, 0.2)]
         return skull, jaw, (0.28, 0.1), (0.46, -0.19), ("horns", 0, 0)
     if kind == "giga":
-        skull = [(-0.24, -0.24), (-0.04, -0.4), (0.3, -0.42), (0.62, -0.38), (0.95, -0.3), (1.15, -0.22), (1.2, -0.08), (1.18, 0.02), (1.0, 0.04), (0.6, 0.05), (0.2, 0.06), (0.05, 0.08), (-0.2, 0.2)]
-        jaw = [(0.12, 0.03), (1.14, 0.03), (1.1, 0.13), (0.6, 0.17), (0.3, 0.22), (0.0, 0.22)]
-        return skull, jaw, (0.06, 0.05), (0.4, -0.27), ("teeth", 0.25, 1.12)
+        skull = [(-0.24, -0.22), (-0.04, -0.36), (0.3, -0.38), (0.66, -0.33), (1.0, -0.25), (1.24, -0.17), (1.32, -0.07), (1.3, 0.02), (1.08, 0.04), (0.6, 0.05), (0.2, 0.06), (0.05, 0.08), (-0.2, 0.18)]   # v20: long, low, narrow
+        jaw = [(0.12, 0.03), (1.26, 0.03), (1.2, 0.12), (0.6, 0.15), (0.3, 0.2), (0.0, 0.2)]
+        return skull, jaw, (0.06, 0.05), (0.38, -0.25), ("teeth", 0.25, 1.24)
     if kind == "carno":
         skull = [(-0.22, -0.3), (0.0, -0.5), (0.3, -0.52), (0.6, -0.42), (0.78, -0.3), (0.86, -0.1), (0.84, 0.03), (0.6, 0.05), (0.2, 0.06), (0.04, 0.08), (-0.2, 0.2)]
         jaw = [(0.1, 0.03), (0.82, 0.03), (0.78, 0.12), (0.4, 0.18), (0.0, 0.2)]
@@ -585,7 +585,10 @@ def beast(kind, t, gait="walk", mouth=0.0, freq=None, look=0.0, P=None, walkd=No
         if far: continue
         polys, (b, kn, an, to) = leg(base, ph0 + (0.5 if kindleg == "front" else 0), sp["fleg"] if kindleg == "front" else sp["leg"], False, kindleg == "front")
         cv.piece(polys[1:], legcol, lw=3); cv.piece(polys[:1], legcol, edge=False, dark=0.96); d = cv.draw()
-        if sp.get("spot") and kindleg == "hind" and not sp.get("mammal"):
+        if kindleg == "hind" and sp["biped"] and kind not in ("raptor", "dilo", "chicken"):   # v20: muscle lines on big theropod thighs, no polka dots
+            d.arc([cv.P((b[0] - 0.06 * L, b[1] - 0.06 * L)), cv.P((b[0] + 0.05 * L, b[1] + 0.05 * L))], 120, 230, fill=shade(legcol, 0.72), width=max(4, int(0.004 * L * S)))
+            d.arc([cv.P((b[0] - 0.035 * L, b[1] - 0.075 * L)), cv.P((b[0] + 0.07 * L, b[1] + 0.03 * L))], 300, 20, fill=shade(legcol, 0.78), width=max(3, int(0.003 * L * S)))
+        elif sp.get("spot") and kindleg == "hind" and not sp.get("mammal"):
             for (dx, dy, rr) in ((-0.03, -0.03, 0.018), (0.02, -0.05, 0.014), (0.0, 0.01, 0.012), (0.04, -0.0, 0.01), (-0.05, 0.02, 0.01)):
                 q = (b[0] + dx * L, b[1] + dy * L); r = rr * L; d.ellipse([cv.P((q[0] - r, q[1] - r)), cv.P((q[0] + r, q[1] + r))], fill=sp["spot"])
         for j in (kn, an):   # joint creases
@@ -645,6 +648,10 @@ def beast(kind, t, gait="walk", mouth=0.0, freq=None, look=0.0, P=None, walkd=No
     def cone(b1, tip, w, col_=(250, 244, 226)):
         b1, b2 = T(b1), T(tip); vx, vy = b2[0] - b1[0], b2[1] - b1[1]; n = math.hypot(vx, vy) or 1; px, py = -vy / n * w * hs, vx / n * w * hs
         d.polygon([cv.P((b1[0] + px, b1[1] + py)), cv.P(b2), cv.P((b1[0] - px, b1[1] - py))], fill=col_, outline=DK, width=5)
+    if "boss" in hd:   # v20: rough horn-like boss behind / above the eye (T. rex postorbital)
+        cv.piece([[T(q) for q in ((0.3, -0.56), (0.4, -0.66), (0.5, -0.64), (0.58, -0.56))]], shade(col, 1.12), smooth=1); d = cv.draw()
+    if "jawmuscle" in hd:   # v20: bulging jaw muscle behind the eye
+        d.arc([cv.P(T((-0.12, -0.4))), cv.P(T((0.24, -0.02)))], 250, 20, fill=shade(col, 0.72), width=max(4, int(0.03 * hs * S)))
     if "ridge" in hd:
         for k in range(6): q = T((0.32 + k * 0.13, -0.41 + 0.015 * k * k * 0.3)); r = 0.035 * hs; d.ellipse([cv.P((q[0] - r, q[1] - r)), cv.P((q[0] + r, q[1] + r))], fill=shade(col, 1.15), outline=DK, width=4)
     if "brow_horns" in hd:
