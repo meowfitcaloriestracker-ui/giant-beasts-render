@@ -10,8 +10,9 @@ TRUTH = [("t1",), ("t2",), ("t3",), ("t4",)]
 CHK = ["pause", "stats", "back", "why", "t1", "who"]
 
 def fight1(C, r, D):
-    hide(C, "b"); C.g("a", 0.0, "graze"); C.stare(0.2, 1.5)
+    hide(C, "b"); C.g("a", 0.0, "graze")   # no stare: it would pull the croc on screen before it swims in
     tin = PB("eyes", 1) - SB("f1")
+    hide(C, "b", max(0.1, tin - 0.05))
     C.k("b", tin, x=FL.BH + 600); C.g("b", tin, "walk"); C.k("b", tin + 3.0, x=FL.BH); C.g("b", tin + 3.0, "pose")
     C.stalk("b", tin + 3.1, d=max(1.5, r("lunge") - tin - 3.3))
     C.g("a", r("lunge"), "pose"); C.strike("b", r("lunge") + 0.2, "bite", d=2.4)
