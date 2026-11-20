@@ -651,7 +651,9 @@ def beast(kind, t, gait="walk", mouth=0.0, freq=None, look=0.0, P=None, walkd=No
     if "boss" in hd:   # v20: rough horn-like boss behind / above the eye (T. rex postorbital)
         cv.piece([[T(q) for q in ((0.3, -0.56), (0.4, -0.66), (0.5, -0.64), (0.58, -0.56))]], shade(col, 1.12), smooth=1); d = cv.draw()
     if "jawmuscle" in hd:   # v20: bulging jaw muscle behind the eye
-        d.arc([cv.P(T((-0.12, -0.4))), cv.P(T((0.24, -0.02)))], 250, 20, fill=shade(col, 0.72), width=max(4, int(0.03 * hs * S)))
+        p1, p2 = cv.P(T((-0.12, -0.4))), cv.P(T((0.24, -0.02))); flipx = p1[0] > p2[0]
+        bx = [min(p1[0], p2[0]), min(p1[1], p2[1]), max(p1[0], p2[0]), max(p1[1], p2[1])]
+        d.arc(bx, *((160, 290) if flipx else (250, 20)), fill=shade(col, 0.72), width=max(4, int(0.03 * hs * S)))   # mirrored when facing left
     if "ridge" in hd:
         for k in range(6): q = T((0.32 + k * 0.13, -0.41 + 0.015 * k * k * 0.3)); r = 0.035 * hs; d.ellipse([cv.P((q[0] - r, q[1] - r)), cv.P((q[0] + r, q[1] + r))], fill=shade(col, 1.15), outline=DK, width=4)
     if "brow_horns" in hd:

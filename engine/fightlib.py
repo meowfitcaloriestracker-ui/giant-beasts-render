@@ -10,6 +10,7 @@ HERE = _HERE0 if os.path.isdir(os.path.join(_HERE0, "sounds")) else (os.environ.
 os.environ.setdefault("FIGHT_A", "trex"); os.environ.setdefault("FIGHT_B", "spino")
 import fight4 as F
 import scenes as SC
+import living as LV
 from PIL import ImageFilter as _IF
 R, DN = F.R, F.DN
 from PIL import Image, ImageDraw, ImageEnhance, ImageChops
@@ -584,7 +585,7 @@ class Choreo:
         if env in SC.SCENES:
             bw = (LCW if s.land else W) + 700; key = ("sc", env, bw)
             if key not in R.BGC: R.BGC[key] = SC.build(env, bw, H)
-            x = int(pan % 600); return R.BGC[key].crop((x, 0, x + (LCW if s.land else W), H))
+            x = int(pan % 600); s._bgx = x; return R.BGC[key].crop((x, 0, x + (LCW if s.land else W), H)).copy()
         if s.land:
             img = wide_bg({"sunset": "dusk", "night": "dark", "volcano": "fire"}.get(env, "land"), pan).copy()
             if env == "river": river_draw(img, OX)
@@ -751,6 +752,7 @@ class Choreo:
 
     def _frame(s, t, ox):
         env = s.env_at(t); img = s.background(env, t)
+        if env in SC.SCENES: LV.mid(img, env, t, getattr(s, "_bgx", 0))   # v21 living scene: swaying trees, far herds, flyers
         rt = t; t = s.warp(rt)   # t = animation time (hit-stop), rt = real time for effects
         tq = F.sample(s.TA, t); sq = F.sample(s.TB, t)
         tq["pitch"] += 0.012 * math.sin(t * 2.4); sq["pitch"] += 0.012 * math.sin(t * 2.1 + 1)
@@ -807,8 +809,8 @@ class Choreo:
         if BEAUTY:
             under_ = env in SC.UNDER
             _motes(img, t, under_, env)
-            fg = _foreground(env, ow, oh, under_); dx_ = 0   # v19.1: foreground silhouettes no longer drift in 1-px steps
-            img.alpha_composite(fg, (dx_, 0)) if dx_ >= 0 else img.alpha_composite(fg.crop((-dx_, 0, ow, oh)), (0, 0))
+            if not LV.front(img, env, t):   # v21: corner foliage sways
+                fg = _foreground(env, ow, oh, under_); img.alpha_composite(fg)
             img = _post(img, env, t, getattr(s, 'look', None))
         for l0, l1, txt in s.labels:
             if l0 <= t < l1: R.tag(img, ow // 2, 110 if s.land else 260, txt, RED, 58, R.pop_s(t, l0))
