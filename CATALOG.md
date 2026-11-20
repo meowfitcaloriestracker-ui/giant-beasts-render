@@ -21,6 +21,18 @@
 ปิดได้ทีละส่วน: `LIVING=0` (ปิดหมด), `LIV_TREES=0`, `LIV_ANIMALS=0`, `LIV_FRONT=0`
 เพิ่มฉาก/สัตว์ใหม่: เพิ่มใน `PRESET` และ `ANIMALS` ใน engine/living.py
 
+## 1.1 มุมกล้องหลายมุมในฉากสู้ (engine/fightlib.py v22)
+ระบบตัดต่ออัตโนมัติ: ทุกจังหวะชน / พุ่งชาร์จ / คำราม จะตัดไปมุมใหม่แล้วกลับมาระยะกว้าง (ช่วงข้อมูล/สถิติไม่ตัด กล้องนิ่ง)
+| มุม | ลักษณะ |
+|---|---|
+| close | โคลสอัปหน้า ค่อยๆ ดันกล้องเข้า (ตัวที่พุ่ง / ตัวที่โดน) |
+| low | มุมต่ำระดับพื้น มองเงยขึ้น เอียงนิดๆ ตัวดูใหญ่ |
+| reverse | กลับด้าน เหมือนกล้องย้ายไปอีกฝั่งของการต่อสู้ |
+| dutch | กล้องเอียง ตึงเครียด |
+| wide | ถอยกว้าง เห็นทั้งฉาก |
+สั่งเองใน ep.py: `C.shot(t0, t1, "close", "a")` — ปิดอัตโนมัติ: `SHOTS=0`
+ไม่ตัดมุมเมื่อมีตัวหลุดจอหรือล้มแล้ว
+
 ## 2. ไดโนเสาร์ 2D (engine/dino45.py, v20)
 37 ตัว: allo, anky, archelon, baryonyx, brachio, carno, chicken, dilo, diplo, dunkleosteus, edmonto, elasmo, giga, iguano, kentro, liopleurodon, livyatan, mammoth, megalania, megalodon, mosasaurus, pachy, paracera, parasaur, quetzal, raptor, rhino, sarco, sloth, smilodon, spino, squid, stego, styraco, therizino, trex, tricera — ดีไซน์ v20 แยกหน้าตาทีเร็กซ์ (หัวลึก ปุ่มเหนือตา) กับจิกาโนฯ (หัวยาวต่ำ สีเทาฟ้า)
 

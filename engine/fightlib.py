@@ -548,7 +548,50 @@ class Choreo:
         s.CAMk = sorted(s.CAM, key=lambda z: z[0])
         for w in ("a", "b"): s.G[w].sort(key=lambda z: z[0])
         s.envk.sort(key=lambda z: z[0])
-        s._tr = True
+        s._tr = True; s.auto_shots()
+
+    # ------------------------------------------------------------- v22 multi-angle shots
+    # kinds: "close" (tight on a fighter's head), "low" (ground-level, looking up, slight tilt), "reverse" (mirror = other side
+    # of the fight), "dutch" (tilted handheld), "wide" (pull back). Cuts are instant like a real edit.
+    def shot(s, t0, t1, kind, who=None):
+        if not hasattr(s, "shots"): s.shots = []
+        s.shots.append((t0, t1, kind, who))
+    def auto_shots(s):
+        """turn every exchange into an edited sequence: build-up close-up -> impact from a new angle -> back to wide"""
+        if os.environ.get("SHOTS", "1") != "1" or getattr(s, "_auto_done", False): return
+        s._auto_done = True; rnd = random.Random(zlib.crc32(f"{s.ka}-{s.kb}".encode()) & 0xffff)
+        if not hasattr(s, "shots"): s.shots = []
+        manual = list(s.shots); last = -9.0; k = 0
+        if not s.shk and not s.bl: return                      # calm sections (facts, stats) keep the steady wide shot
+        # beats = impacts (camera shakes), charges (a fighter starts running), big roars
+        beats = [(t0, "hit") for t0, *_ in s.shk]
+        for w in ("a", "b"):
+            beats += [(t0 - 0.1, "charge_" + w) for t0, act in s.G[w] if act == "run"]
+        beats += [(e[0], "roar") for e in s.snd if "roar" in str(e[1]) and "growl" not in str(e[1])]
+        beats.sort()
+        pats = {"hit": [("close_vic", "reverse"), ("low", "wide"), ("reverse",), ("dutch", "wide")],
+                "charge": [("low",), ("close_att",), ("reverse",)],
+                "roar": [("close_att",), ("low",)]}
+        for t0, kind0 in beats:
+            if t0 - last < 2.2 or any(a <= t0 <= b for a, b, *_ in manual): continue
+            base = kind0.split("_")[0]; att = kind0[-1] if base == "charge" else None
+            if base == "hit":
+                hb = min(s.bl, key=lambda e: abs(e[0] - t0)) if s.bl else None
+                vic = hb[3] if hb and abs(hb[0] - t0) < 0.5 else ("b" if k % 2 else "a"); att = "a" if vic == "b" else "b"
+            else: vic = None
+            if att is None: att = "a" if k % 2 == 0 else "b"
+            if vic is None: vic = "a" if att == "b" else "b"
+            pl = pats[base]; pat = pl[(k + rnd.randint(0, 2)) % len(pl)]; k += 1
+            t = t0 - (0.6 if base == "hit" else 0.15)
+            for j, kind in enumerate(pat):
+                d = 0.6 if (base == "hit" and j == 0 and len(pat) > 1) else 1.4
+                who = att if kind == "close_att" else (vic if kind == "close_vic" else None)
+                s.shots.append((t, t + d, kind.split("_")[0], who)); t += d
+            last = t
+    def shot_at(s, t):
+        for t0, t1, kind, who in getattr(s, "shots", []):
+            if t0 <= t < t1: return kind, who, t - t0
+        return None
 
     def camv(s, t):
         if CAM_LOCK: return 1.0, 540.0, 880.0   # v19.2: locked wide shot - the background never moves or changes
@@ -802,10 +845,29 @@ class Choreo:
             cmw, cmh = img.size
         else:
             ow, oh = W, H; cw, ch = W / z, H / z; cx_, cy_ = zx, zy; cmw, cmh = W, H
+        sht = s.shot_at(t) if not CAM_LOCK else None; tilt = 0.0; mirror = False
+        if sht and (lieA or lieB or not all(-200 < q_["x"] < cmw + 200 for q_ in (tq, sq))): sht = None   # someone off-screen / down: stay wide
+        if sht:
+            kind, who, u = sht
+            if kind == "close" and who:
+                q = tq if who == "a" else sq; sg = 1 if who == "a" else -1; bi = s.biped(who)
+                hx, hy = q["x"] + sg * (300 if bi else 300), s.gy(who) - (380 if bi else 170)
+                zz = (2.05 if bi else 2.3) * (1 + 0.04 * u)                 # slow push-in
+                cw, ch = ow / zz, oh / zz; cx_, cy_ = hx, hy; z = zz
+            elif kind == "low":
+                zz = 1.12 * (1 + 0.03 * u); cw, ch = ow / zz, oh / zz; cx_ = (tq["x"] + sq["x"]) / 2; cy_ = s.gy("a") - 360; z = zz; tilt = -3.0
+            elif kind == "dutch":
+                zz = max(z, 1.15); cw, ch = ow / zz, oh / zz; z = zz; tilt = 5.0 * (1 if int(sht[2] * 0 + len(s.shots)) % 2 else -1)
+            elif kind == "wide":
+                zz = max(0.8, z * 0.86); cw, ch = min(ow / zz, cmw), min(oh / zz, cmh); z = zz
+            elif kind == "reverse":
+                mirror = True
         x0 = min(max(cx_ - cw / 2 + sh * (0.6 * math.sin(t * 53) + 0.4 * math.sin(t * 31)) / z, 0), cmw - cw)
         y0 = min(max(cy_ - ch / 2 + sh * (0.6 * math.cos(t * 47) + 0.4 * math.sin(t * 29)) / z, 0), cmh - ch)
         if s.land or z > 1.001 or sh:   # v19.1: sub-pixel camera (integer crop made the background stutter while the camera moved)
             img = img.transform((ow, oh), Image.AFFINE, (cw / ow, 0, x0, 0, ch / oh, y0), resample=Image.BICUBIC)
+        if tilt: img = img.rotate(tilt, resample=Image.BICUBIC, center=(ow / 2, oh / 2)).transform((ow, oh), Image.AFFINE, (0.92, 0, ow * 0.04, 0, 0.92, oh * 0.04), resample=Image.BICUBIC)
+        if mirror: img = img.transpose(Image.FLIP_LEFT_RIGHT)
         if BEAUTY:
             under_ = env in SC.UNDER
             _motes(img, t, under_, env)
